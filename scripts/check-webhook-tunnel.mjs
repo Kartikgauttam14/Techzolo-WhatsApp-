@@ -1,0 +1,17 @@
+const endpoint=new URL(process.env.META_WEBHOOK_URL||'');
+const token=process.env.META_WEBHOOK_VERIFY_TOKEN;
+if(endpoint.protocol!=='https:'||!endpoint.pathname.endsWith('/api/whatsapp/webhook')||!token)throw new Error('Set META_WEBHOOK_URL to the HTTPS webhook-only relay and configure the Meta verify token.');
+const challenge=`techzolo-check-${Date.now()}`;
+endpoint.searchParams.set('hub.mode','subscribe');
+endpoint.searchParams.set('hub.verify_token',token);
+endpoint.searchParams.set('hub.challenge',challenge);
+const verified=await fetch(endpoint);
+const responseText=await verified.text();
+if(verified.status!==200||responseText!==challenge)throw new Error(`Meta challenge check failed with HTTP ${verified.status}.`);
+const other=new URL(endpoint);other.pathname='/api/session';other.search='';
+const blocked=await fetch(other);
+if(blocked.status!==404)throw new Error(`The tunnel relay exposed an unexpected route (HTTP ${blocked.status}).`);
+endpoint.search='';
+const signatureCheck=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:'{}'});
+if(signatureCheck.status!==401)throw new Error(`The webhook rejected unsigned data with unexpected HTTP ${signatureCheck.status}.`);
+console.log('Webhook tunnel checks passed: Meta challenge accepted, CRM route blocked, unsigned webhook rejected.');

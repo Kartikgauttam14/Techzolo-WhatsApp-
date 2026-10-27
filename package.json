@@ -1,0 +1,30 @@
+{
+  "name": "techzolo-workspaces",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.15.0"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.mjs",
+    "dev": "node --watch --env-file-if-exists=.env server.mjs",
+    "setup:whatsapp": "node scripts/setup-whatsapp.mjs",
+    "configure:whatsapp-webhook": "node --env-file-if-exists=.env scripts/configure-meta-webhook.mjs",
+    "check:whatsapp-tunnel": "node --env-file-if-exists=.env scripts/check-webhook-tunnel.mjs",
+    "webhook:relay": "node --env-file-if-exists=.env webhook-relay.mjs",
+    "tunnel:whatsapp": "data/bin/cloudflared.exe tunnel --no-autoupdate --protocol http2 --url http://127.0.0.1:3002",
+    "test": "node --test tests/*.test.mjs",
+    "test:e2e": "playwright test",
+    "check": "node --check app.js && node --check saas.js && node --check whatsapp-ui.js && node --check platform-admin.js && node --check server.mjs && node --check whatsapp.mjs"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "nodemailer": "^10.2.1",
+    "sharp": "^0.35.5",
+    "stripe": "^20.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0"
+  }
+}

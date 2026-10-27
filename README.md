@@ -84,4 +84,3 @@ Research uses OWASP tenant/auth/upload guidance, Stripe subscription documentati
 | `tests/` / `playwright.config.mjs` | Isolated API and browser verification |
 
 This version runs as one Node instance with a durable SQLite file and versioned workspace documents capped at 16 MB. Use an HTTPS reverse proxy for deployment. High-volume/multi-instance hosting needs a shared database, normalized CRM tables, pagination and operational safeguards; see the launch gaps in the requirements document. The terms/privacy screens are development drafts that must be finalized before public commercial launch.
-

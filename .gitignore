@@ -5,3 +5,4 @@ test-results/
 playwright-report/
 *.sqlite*
 docs/meta-app-*.png
+supabase/.temp/

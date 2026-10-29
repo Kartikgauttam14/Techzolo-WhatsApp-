@@ -4,6 +4,8 @@
 
 Node.js 24.15+ serves the supplied vanilla HTML/CSS/JavaScript UI through Express 5. SQLite is accessed using Node's built-in `node:sqlite` API. Sharp normalizes company images. Stripe and Nodemailer are optional integration adapters. No frontend build or hosted account is required for local use.
 
+The Supabase Postgres schema is maintained in `supabase/migrations/`. It is a provisioned database foundation, not yet the active runtime repository: Express still uses SQLite until the authentication and data-access cutover is implemented. See [the Supabase database notes](../supabase/README.md).
+
 ```mermaid
 flowchart LR
   Browser[Company workspace / public signup] --> API[Same-origin Express API]

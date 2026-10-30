@@ -1,6 +1,6 @@
 # SaaS scope and research
 
-Research checked on 27 October 2026. This is an implemented local SaaS foundation, not a claim that every enterprise feature or live provider integration is finished.
+Research checked on 30 October 2026. This is an implemented local SaaS foundation, not a claim that every enterprise feature or live provider integration is finished.
 
 ## Implemented product requirements
 
@@ -14,7 +14,8 @@ Research checked on 27 October 2026. This is an implemented local SaaS foundatio
 | Customer branding | Subscriber URL includes the company slug; public response contains only brand and signup information; company logo is consistent across navigation and subscriber page |
 | Team | Owner/admin/agent/viewer roles, invitations bound to email, single-use hashed invitation tokens, expiry, revocation, role changes and member removal |
 | CRM | Contacts, search, CSV import/export, notes, conversation drafts, opportunity creation/editing and pipeline movement |
-| Campaign preparation | Message template drafts, campaign drafts, automation configurations and assistant instructions; no simulated delivery claims |
+| Messaging channels | Company-scoped WhatsApp Business integration and Instagram professional account OAuth, signed webhooks, inboxes and provider-window reply checks |
+| Campaigns | WhatsApp draft workflow plus SMTP bulk email campaigns, double opt-in, per-company audiences, paced sending, delivery outcomes and unsubscribe suppression |
 | Subscriptions | Plan catalog, reserved seat accounting, server quotas, trial expiry, Stripe checkout and portal adapters, raw-body signed webhooks, event deduplication and provider-state reconciliation |
 | Trust and operations | Audit history, live workspace counts, JSON export, explicit provider configuration status, security screen and draft legal notices |
 
@@ -39,7 +40,7 @@ The server enforces these permissions. UI checks only improve feedback. Password
 2. **Hash passwords, constrain sessions and throttle authentication.** Passwords are 15–128 characters and use individual salts with scrypt. Opaque session tokens and one-time links are hashed in SQLite. SMTP supports verification and expiring recovery. Production requires HTTPS. [OWASP Authentication](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html)
 3. **Treat a logo as an untrusted upload.** Allowlisted MIME types are insufficient by themselves: Sharp decodes the bytes, checks the actual format, enforces pixel and byte limits, strips metadata and re-encodes PNG. SVG is rejected. The API controls the output filename and resource scope. [OWASP File Upload](https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html), [Sharp constructor](https://sharp.pixelplumbing.com/api-constructor/)
 4. **Grant paid access from provider state.** Checkout redirects do not change plans. The webhook verifies raw bytes with the Stripe signing secret, deduplicates event IDs and retrieves the current subscription before applying mapped price IDs. Canceled, incomplete, past-due and other inactive states cannot write CRM records. [Stripe subscription webhooks](https://docs.stripe.com/billing/subscriptions/webhooks)
-5. **Separate signup requests from verified messaging permission.** A website checkbox stores a pending request and its wording/time. It does not create a verified subscriber or approve a template. No WhatsApp provider is connected in this build. [WhatsApp Business Messaging Policy](https://whatsappbusiness.com/policy/)
+5. **Separate permissions by channel.** WhatsApp signup requests require WhatsApp confirmation; email requires a separate double opt-in. Neither imports nor website checkboxes silently enroll a contact. Instagram replies are customer-initiated and limited to the supported messaging window. [WhatsApp Business Messaging Policy](https://whatsappbusiness.com/policy/), [Meta's official Instagram API collection](https://www.postman.com/meta/instagram/documentation/6yqw8pt/instagram-api)
 
 These implementation choices are derived from the sources; they are not certifications or exhaustive compliance claims.
 
@@ -57,7 +58,8 @@ The full workspace has a 16 MB storage ceiling, including notes and drafts. Thes
 
 ## Explicit launch gaps
 
-- Meta integration code is implemented in `whatsapp.mjs`; live activation still needs credentials, an HTTPS callback and Meta Tech Provider/App Review for third-party companies. Bulk campaign workers, media templates, coexistence and automatic outbound retries remain out of scope. See WHATSAPP.md.
+- Meta integrations are implemented in `whatsapp.mjs` and `channels.mjs`; live activation still needs credentials, app products/scopes, Meta review and public HTTPS callbacks for each provider. Instagram is text inbox/reply only. WhatsApp media templates, coexistence and automatic outbound retries remain out of scope. See WHATSAPP.md and INSTAGRAM-EMAIL.md.
+- Email uses one operator-configured SMTP sender identity and a conservative 250-recipient campaign cap. Domain-specific sender verification, scheduling, bounce/complaint webhooks and large-scale queue infrastructure remain out of scope.
 - Live AI responses and executable visual flows. Assistant and automation settings are stored configuration only.
 - SSO/MFA, enterprise identity provisioning, ownership transfer, a platform-wide super-admin console and self-service account/company deletion.
 - Production email reputation, DNS and final legal/company contact details. The included terms/privacy are development drafts.

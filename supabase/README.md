@@ -6,12 +6,15 @@ is in `migrations/`. The initial model is in
 `20261029061800_harden_workspace_policy_overlaps.sql` separates write policies
 to keep SELECT checks efficient, and `20261029061925_restrict_server_owned_columns.sql`
 prevents authenticated users from changing server-owned billing or notification
-fields.
+fields. The additional
+`20261030095024_add_instagram_and_email_marketing.sql` migration adds Instagram
+inbox records, email consent and campaign delivery tables, plus RLS policies.
 
 It models Supabase Auth profiles, workspaces and memberships, contacts, deals,
 WhatsApp conversations and messages, consent evidence, templates, campaigns,
 automations, assistant settings, notifications, invitations, billing, audit
-history, and platform-admin records. Workspace data uses row-level security;
+history, platform-admin records, Instagram inbox connections/messages, and
+email marketing permissions/deliveries. Workspace data uses row-level security;
 anonymous users receive no table access. WhatsApp tokens, Stripe identifiers,
 one-time token hashes, webhook idempotency and platform-admin membership live
 in the unexposed `app_private` schema for server-only access.
@@ -22,8 +25,11 @@ use a client-exposed service-role key.
 
 ## Runtime status
 
-All three migrations have been applied to the Supabase project through its SQL
-Editor and verified. The current Express runtime still reads and writes the local
+The original three migrations have been applied to the Supabase project through
+its SQL Editor and verified. The Instagram/email migration is present in this
+repository but has not been applied remotely: the configured Supabase connector
+does not currently have access to project `uvdjrbsiyircgutnstmm`. The current
+Express runtime still reads and writes the local
 SQLite database in `server.mjs`; this schema does not automatically move live
 app data into Supabase. A separate backend cutover must replace the SQLite
 repository and custom session authentication with Supabase Auth and Postgres

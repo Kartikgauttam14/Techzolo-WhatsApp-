@@ -16,7 +16,7 @@
     "tunnel:whatsapp": "data/bin/cloudflared.exe tunnel --no-autoupdate --protocol http2 --url http://127.0.0.1:3002",
     "test": "node --test tests/*.test.mjs",
     "test:e2e": "playwright test",
-    "check": "node --check app.js && node --check saas.js && node --check whatsapp-ui.js && node --check platform-admin.js && node --check server.mjs && node --check whatsapp.mjs"
+    "check": "node --check app.js && node --check saas.js && node --check whatsapp-ui.js && node --check channels-ui.js && node --check platform-admin.js && node --check server.mjs && node --check whatsapp.mjs && node --check channels.mjs"
   },
   "dependencies": {
     "express": "^5.1.0",

@@ -1,6 +1,6 @@
 # SaaS test cases
 
-Designed from the implementation and primary-source research checked on 27 October 2026. Tests below distinguish executed automated coverage from acceptance work requiring configured providers or an operator.
+Designed from the implementation and primary-source research checked on 30 October 2026. Tests below distinguish executed automated coverage from acceptance work requiring configured providers or an operator.
 
 ## Run locally
 
@@ -104,6 +104,16 @@ Use a non-production environment with synthetic data. Document the operator, env
 | SEC-05 | P0 | Penetration test tenant IDs, roles, invite tokens, uploads and public metadata | No cross-company reads/writes, privilege escalation, token leakage or unsafe file execution |
 | LEGAL-01 | P0 | Publish actual operator contact, legal terms, privacy/retention process | No development-policy notice remains before public commercial launch |
 | LIVE-WA-01 | P0 | Connect a Meta test WABA/number; send customer replies and approved templates; deliver inbound/status webhooks | Real provider acceptance and receipt/inbound routing match synthetic tests; no messages sent to non-test recipients |
+| LIVE-IG-01 | P0 | Configure Instagram Login, exact OAuth callback, webhook, required scopes and app roles; connect a Business/Creator test account | OAuth state is session-bound, account token is stored encrypted, workspace account status is visible, and secrets do not appear in browser payloads |
+| LIVE-IG-02 | P0 | Send a real DM from an allowed test user; receive webhook; reply from the company inbox | Valid signed webhook creates one workspace-scoped conversation; reply is accepted while the customer-service window is open |
+| LIVE-IG-03 | P0 | Submit unsigned, wrong-signature, replayed, malformed and cross-account webhooks | Invalid signatures are rejected; duplicate provider IDs are not stored twice; unknown accounts are ignored; no other workspace receives data |
+| LIVE-IG-04 | P0 | Attempt an Instagram reply with no inbound conversation, after 24 hours, using viewer role, then with valid agent role | Uninitiated/expired-window/viewer sends are blocked; authorized reply inside the window reaches the test user |
+| LIVE-IG-05 | P1 | Revoke token, remove account permission, reconnect and disconnect | Send failures are surfaced; reconnect restores access; disconnect prevents future sends and frees the account for reassignment |
+| LIVE-EMAIL-01 | P0 | Add a synthetic contact, request email permission, open confirmation link with GET scanner, then explicitly confirm | GET does not subscribe; one-time unexpired token enables only that contact address; replay/expired token is rejected |
+| LIVE-EMAIL-02 | P0 | Create a campaign with one confirmed contact, one pending contact, an imported address and unsafe HTML in content | Only current, confirmed contacts receive mail; HTML is encoded; unsubscribe footer and List-Unsubscribe headers are present |
+| LIVE-EMAIL-03 | P0 | Open unsubscribe page, submit signed form and send RFC one-click POST; tamper with signature and try another workspace ID | Valid unsubscribe suppresses future delivery immediately; invalid signatures or mismatched identifiers cannot alter preferences |
+| LIVE-EMAIL-04 | P0 | Send campaign through a test SMTP account with accepted, rejected and timeout recipients; restart with queue pending | SMTP acceptance/failure is reflected accurately; timeout is marked unknown, is not retried automatically, and pauses the campaign; an admin can resume remaining queued recipients without resending accepted/unknown addresses |
+| LIVE-EMAIL-05 | P1 | Attempt campaign with SMTP absent, missing unsubscribe secret, over 250 confirmed contacts, trial ended and viewer role | Clear configuration or entitlement error; campaign is not partially queued; audience cap and role restrictions are server-enforced |
 | FUTURE-02 | P1 | Implement AI provider/visual flow execution | Responses and execution tested against connected source data; configuration alone is not counted as execution |
 
 ## Primary-source rationale
@@ -113,3 +123,5 @@ Use a non-production environment with synthetic data. Document the operator, env
 - [OWASP File Upload](https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html): BRAND content/format/size/pixel checks.
 - [Stripe subscription webhooks](https://docs.stripe.com/billing/subscriptions/webhooks): BILL lifecycle, signatures, delayed events and provider acceptance.
 - [WhatsApp Business Messaging Policy](https://whatsappbusiness.com/policy/): CONSENT and future opt-out/template/delivery tests.
+- [Meta's official Instagram API collection](https://www.postman.com/meta/instagram/documentation/6yqw8pt/instagram-api): Instagram professional account access, messaging permission, customer-started conversations and Send API tests.
+- [Meta's Instagram workspace](https://www.postman.com/meta/instagram/overview): first-party API examples and current change reference for LIVE-IG acceptance.

@@ -31,6 +31,8 @@ Edit `.env` and restart the server. Default data is persisted in `data/techzolo.
 - Contacts, CSV import/export, internal notes, conversation drafts, opportunities, pipeline changes, template/campaign drafts and automation/assistant configuration.
 - Live workspace counts, JSON export, plan usage, reserved seat accounting, quotas and read-only access after a trial/subscription expires.
 - Optional SMTP verification/recovery/invitation emails, Stripe hosted checkout/portal and signature-verified subscription webhooks.
+- Per-company Instagram professional-account OAuth, webhook inbox and 24-hour customer-initiated replies; requires Meta Instagram permissions/App Review and public HTTPS callbacks.
+- Permission-based bulk email campaigns with double opt-in, server-side queue pacing, campaign status, signed unsubscribe links and SMTP transport.
 - Separate platform operator console with workspace/account search, service health, audited suspension/trial/account access tools. Access is granted only by a server-side `PLATFORM_ADMIN_EMAILS` allowlist; workspace admin roles never grant platform access. See [platform admin setup](docs/PLATFORM-ADMIN.md).
 - Company-specific public signup pages: `subscribe.html?workspace=YOUR_COMPANY_SLUG`. Submissions are **pending requests**, not verified marketing permission.
 
@@ -42,10 +44,12 @@ Edit `.env` and restart the server. Default data is persisted in `data/techzolo.
 | Email verification/password recovery | Adapter implemented; configure `SMTP_URL` and `MAIL_FROM` |
 | Paid subscription checkout/customer portal | Adapter implemented; configure Stripe keys, recurring price IDs and webhook |
 | Company WhatsApp connection, live text/body-template sending, signed inbound/receipts, consent confirmation and STOP | Implemented; configure Meta credentials, Embedded Signup and public HTTPS webhook; Meta approval required for third-party companies |
+| Instagram company inbox and replies | Implemented; configure Instagram Login scopes, callback/webhook URLs, public HTTPS, Meta review and operator-side credentials; customer starts the conversation and replies are limited to Meta's messaging window |
+| Bulk email campaigns | Implemented; configure SMTP, verified sender and unsubscribe-signing secret; recipients must double-confirm email permission; 250 recipients/campaign at one message per second |
 | Live AI, executable visual flows and background automation | Not integrated; configuration/drafts only |
 | Production hosting, MFA/SSO, backups, retention/deletion and monitoring | Deployment/next-phase work |
 
-Unconfigured providers show their actual status. No browser action can mark a draft as Meta-approved, invent delivered-message counts or claim verified WhatsApp consent. Company owners explicitly connect Meta before live messaging; signup alone does not connect or send. See [WhatsApp setup and activation](docs/WHATSAPP.md).
+Unconfigured providers show their actual status. No browser action can mark a draft as Meta-approved, invent delivered-message counts or claim verified consent. Company owners explicitly connect Meta before live messaging; company signup alone does not connect or send. See [WhatsApp setup and activation](docs/WHATSAPP.md) and [Instagram and email setup](docs/INSTAGRAM-EMAIL.md).
 
 ## Test and inspect
 
@@ -68,6 +72,7 @@ npm audit
 - [Test cases, priorities, steps, expected results and provider acceptance](docs/TEST-CASES.md)
 - [Architecture, data model, security boundaries and deployment setup](docs/ARCHITECTURE.md)
 - [Company WhatsApp setup, API behavior and live activation](docs/WHATSAPP.md)
+- [Instagram and email setup, consent and operational limits](docs/INSTAGRAM-EMAIL.md)
 
 Research uses OWASP tenant/auth/upload guidance, Stripe subscription documentation and the WhatsApp Business Messaging Policy. The test matrix identifies manual/provider work explicitly rather than presenting it as completed automation.
 
@@ -77,6 +82,7 @@ Research uses OWASP tenant/auth/upload guidance, Stripe subscription documentati
 | --- | --- |
 | `server.mjs` | Express APIs, SQLite schema, authentication, authorization, quotas, uploads, billing and email |
 | `whatsapp.mjs` / `whatsapp-ui.js` / `whatsapp.css` | Meta connection, encrypted credentials, signed callbacks, live inbox, receipts and consent |
+| `channels.mjs` / `channels-ui.js` | Instagram OAuth/inbox/webhook and email permission, unsubscribe and bulk campaign delivery |
 | `saas.js` / `saas.css` | SaaS account flows, landing page, company administration, server persistence and branding |
 | `app.js` / `styles.css` | Adapted original CRM views and interactions |
 | `index.html` / `subscribe.html` | Workspace and company subscriber entrypoints |

@@ -207,6 +207,7 @@
     if(SaaS.whatsappInbox)views.inbox=SaaS.whatsappInbox;
     views.settings=SaaS.settings;
     views.subscribers=SaaS.subscribers;
+    if(SaaS.emailCampaigns)views.broadcasts=SaaS.emailCampaigns;
     views.reports=SaaS.reports;
     views.flows=()=>`${heading('Map the next conversation.','Flow execution requires a connected messaging provider.')}<section class="card card-body"><h2>Start with a helpful automation.</h2><p class="muted text-sm mt">Create welcome replies, keyword rules and human handoff instructions in Automations. A live flow builder and journey execution are planned for a future release.</p><a class="btn mt" href="#automations">Configure automations →</a></section>`;
     for(const id of ['branding','team','billing','audit','security','integrations'])views[id]=()=>SaaS.customView(id);

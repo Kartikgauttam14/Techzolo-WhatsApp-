@@ -9,6 +9,7 @@ import sharp from 'sharp';
 import Stripe from 'stripe';
 import nodemailer from 'nodemailer';
 import { installWhatsApp } from './whatsapp.mjs';
+import { installChannels } from './channels.mjs';
 
 const scrypt = promisify(scryptCallback);
 const ROOT = dirname(fileURLToPath(import.meta.url));
@@ -90,7 +91,9 @@ export function createApp(options = {}) {
     else { fail(record.count >= limit, 429, 'Too many attempts. Try again later.'); run('UPDATE rate_limits SET count=count+1 WHERE key=?', key); }
   }
   const whatsapp=installWhatsApp({db,config,owner:(req,res,next)=>owner(req,res,next),admin:(req,res,next)=>admin(req,res,next),writable,tenantOf,audit,transaction,limited,plans:PLANS,fetch:options.metaFetch});
+  const channels=installChannels({db,config,owner:(req,res,next)=>owner(req,res,next),admin:(req,res,next)=>admin(req,res,next),writable,tenantOf,audit,transaction,limited,mailer,appUrl,plans:PLANS,fetch:options.metaFetch});
   app.use('/api/whatsapp/webhook',whatsapp.webhook);
+  app.use('/api/instagram/webhook',channels.instagramWebhook);
   // Raw bytes are essential: never put express.json() before signature verification.
   app.post('/api/billing/webhook', express.raw({ type: 'application/json', limit: '1mb' }), async (req, res) => {
     fail(!stripe || !config.STRIPE_WEBHOOK_SECRET, 503, 'Billing is not configured.');
@@ -118,7 +121,8 @@ export function createApp(options = {}) {
     if (!['GET', 'HEAD'].includes(req.method)) {
       fail(req.headers.origin && req.headers.origin !== new URL(appUrl).origin, 403, 'Request origin is not allowed.');
       fail(req.headers['sec-fetch-site'] === 'cross-site', 403, 'Cross-site requests are not allowed.');
-      fail(!req.is('application/json'), 415, 'Use application/json.');
+      const formPost=['/api/email/confirm','/api/email/unsubscribe'].includes(req.originalUrl.split('?')[0]) && req.is('application/x-www-form-urlencoded');
+      fail(!req.is('application/json') && !formPost, 415, 'Use application/json.');
     }
     const rawCookie = /(?:^|;\s*)tz_session=([a-f0-9]{64})(?:;|$)/.exec(req.headers.cookie || '')?.[1];
     req.session = rawCookie ? one('SELECT * FROM sessions WHERE id=? AND expires>?', hash(rawCookie), now()) : null;
@@ -132,11 +136,13 @@ export function createApp(options = {}) {
     req.session = { user, tenant, csrf };
   }
   function authenticated(req, res, next) {
+    const pathname=req.originalUrl.split('?')[0];
+    if(['/api/email/confirm','/api/email/unsubscribe'].includes(pathname))return next();
     fail(!req.session, 401, 'Please sign in to continue.');
     fail(one('SELECT disabled FROM users WHERE id=?', req.session.user)?.disabled, 403, 'This account is disabled. Contact the service operator.');
     // A shared cookie can be switched by another tab. Reject stale workspace
     // contexts before reading or writing, even when the user belongs to both.
-    if (!['/api/session', '/api/auth/logout'].includes(req.originalUrl.split('?')[0])) fail(req.headers['x-workspace-id'] !== req.session.tenant, 409, 'The active workspace changed. Reload this tab before continuing.');
+    if (!['/api/session', '/api/auth/logout','/api/instagram/callback'].includes(pathname)) fail(req.headers['x-workspace-id'] !== req.session.tenant, 409, 'The active workspace changed. Reload this tab before continuing.');
     const membership = one('SELECT role FROM members WHERE tenant=? AND user=?', req.session.tenant, req.session.user);
     fail(!membership, 403, 'You no longer belong to this workspace.');
     req.role = membership.role;
@@ -346,7 +352,7 @@ export function createApp(options = {}) {
     const state = req.body.state, old = JSON.parse(t.state);
     validateState(state, old, req.role, PLANS[t.plan]);
     const serialized = JSON.stringify(state); fail(Buffer.byteLength(serialized) > 16 * 1024 * 1024, 413, 'Workspace exceeds the 16 MB storage limit.');
-    transaction(() => { whatsapp.reconcilePreferences(t.id,old,state); run('UPDATE tenants SET state=?,name=?,version=version+1 WHERE id=?', serialized, state.settings.business, t.id); audit(t.id, one('SELECT email FROM users WHERE id=?', req.session.user).email, 'workspace.saved'); });
+    transaction(() => { whatsapp.reconcilePreferences(t.id,old,state); channels.reconcileEmailContacts(t.id,old,state); run('UPDATE tenants SET state=?,name=?,version=version+1 WHERE id=?', serialized, state.settings.business, t.id); audit(t.id, one('SELECT email FROM users WHERE id=?', req.session.user).email, 'workspace.saved'); });
     res.json({ version: t.version + 1 });
   });
   app.put('/api/branding', admin, async (req, res) => {
@@ -384,7 +390,7 @@ export function createApp(options = {}) {
   app.delete('/api/team/:id', owner, (req, res) => { fail(req.params.id === req.session.user, 400, 'The owner cannot be removed.'); const result = run("DELETE FROM members WHERE tenant=? AND user=? AND role!='owner'", req.session.tenant, req.params.id); fail(!result.changes, 404, 'Member not found.'); run('DELETE FROM sessions WHERE tenant=? AND user=?', req.session.tenant, req.params.id); audit(req.session.tenant, req.session.user, 'team.removed'); res.json({ ok: true }); });
   app.get('/api/audit', admin, (req, res) => res.json(all('SELECT actor,action,details,at FROM audit WHERE tenant=? ORDER BY id DESC LIMIT 200', req.session.tenant)));
   app.get('/api/subscriber-requests', admin, (req, res) => res.json(all('SELECT id,name,phone,wording,at FROM signup_requests WHERE tenant=? ORDER BY at DESC LIMIT 200', req.session.tenant)));
-  app.get('/api/billing', (req, res) => { const t = tenantOf(req); const s = JSON.parse(t.state); res.json({ plan: t.plan, status: t.status, trialEnd: t.trial_end, limits: PLANS[t.plan], usage: { contacts: s.contacts.length, campaigns: s.campaigns.length, automations: s.automations.length, seats: one('SELECT count(*) AS n FROM members WHERE tenant=?', t.id).n + one('SELECT count(*) AS n FROM invites WHERE tenant=? AND expires>?', t.id, now()).n }, configured: !!stripe }); });
+  app.get('/api/billing', (req, res) => { const t = tenantOf(req); const s = JSON.parse(t.state); res.json({ plan: t.plan, status: t.status, trialEnd: t.trial_end, limits: PLANS[t.plan], usage: { contacts: s.contacts.length, campaigns: s.campaigns.length + one('SELECT count(*) AS n FROM email_campaigns WHERE tenant=?', t.id).n, automations: s.automations.length, seats: one('SELECT count(*) AS n FROM members WHERE tenant=?', t.id).n + one('SELECT count(*) AS n FROM invites WHERE tenant=? AND expires>?', t.id, now()).n }, configured: !!stripe }); });
   app.post('/api/billing/checkout', owner, async (req, res) => {
     const t = tenantOf(req), plan = req.body.plan; fail(!Object.hasOwn(PLANS, plan), 400, 'Choose a valid plan.');
     const price = config[`STRIPE_PRICE_${plan.toUpperCase()}`]; fail(!stripe || !price, 503, 'Stripe billing has not been configured. Your plan has not changed.');
@@ -397,9 +403,11 @@ export function createApp(options = {}) {
   });
   app.post('/api/billing/portal', owner, async (req, res) => { const t = tenantOf(req); fail(!stripe || !t.customer, 503, 'A Stripe customer account is required before opening the billing portal.'); res.json({ url: (await stripe.billingPortal.sessions.create({ customer: t.customer, return_url: `${appUrl}/#billing` })).url }); });
   app.use('/api/whatsapp',whatsapp.router);
+  app.use('/api/instagram',channels.instagram);
+  app.use('/api/email',channels.email);
   app.use('/api', (req, res) => res.status(404).json({ error: 'API endpoint not found.' }));
   // Explicit allowlist: never expose the database, source, .env, or dependencies.
-  for (const file of ['index.html', 'subscribe.html', 'styles.css', 'app.js', 'saas.js', 'saas.css', 'whatsapp-ui.js', 'whatsapp.css', 'platform-admin.js', 'platform-admin.css']) app.get(`/${file}`, (req, res) => res.sendFile(resolve(ROOT, file)));
+  for (const file of ['index.html', 'subscribe.html', 'styles.css', 'app.js', 'saas.js', 'saas.css', 'whatsapp-ui.js', 'whatsapp.css', 'channels-ui.js', 'platform-admin.js', 'platform-admin.css']) app.get(`/${file}`, (req, res) => res.sendFile(resolve(ROOT, file)));
   app.get('/', (req, res) => res.sendFile(resolve(ROOT, 'index.html')));
   app.get('/Techzolo-WhatsApp-HTML/:file', (req, res) => { fail(!['index.html', 'subscribe.html', 'app.js', 'styles.css'].includes(req.params.file), 404, 'Not found.'); res.redirect(`/${req.params.file}`); });
   app.use((req, res) => res.status(404).send('Not found'));
